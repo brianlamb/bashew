@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - random script name generator
 - fix bash_unit and shellcheck warnings
 
+## [1.0.1] - 2020-08-09
+### Added/changed
+- Implement 'bashew.sh script'
+- random script name generator
+
 ## [0.0.1] - 2020-08-06
 ### Added
 - based on pforret/bash-boilerplate
