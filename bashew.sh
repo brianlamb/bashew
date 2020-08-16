@@ -571,10 +571,17 @@ initialize_script_data(){
    if [[ -z $(dirname "${BASH_SOURCE[0]}") ]]; then
     # script called without path ; must be in $PATH somewhere
     # shellcheck disable=SC2230
+<<<<<<< HEAD
     script_install_path=$(which "${BASH_SOURCE[0]}")
     if [[ -n $(readlink "$script_install_path") ]] ; then
       # when script was installed with e.g. basher
       script_install_path=$(readlink "$script_install_path")
+=======
+    script_install_path=$(which "$0")
+    if [[ -n $(readlink "$script_install_path") ]] ; then
+      script_install_path=$(readlink "$script_install_path") # when script was installed with e.g. basher
+      log "Script linked: $script_install_path"
+>>>>>>> b24548b... Why:
     fi
     script_install_folder=$(dirname "$script_install_path")
   else
