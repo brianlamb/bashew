@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
-<<<<<<< HEAD
 readonly script_author="rocketmanblamb@gmail.com"
-=======
-readonly script_author="peter@forret.com"
->>>>>>> a51e461c9bd30f75e48184fd49af1ea831043d4b
 readonly script_fname=$(basename "${BASH_SOURCE[0]}")
 readonly script_name=$(basename "${BASH_SOURCE[0]}" .sh)
 # runasroot: 0 = don't check anything / 1 = script MUST run as root / -1 = script MAY NOT run as root
