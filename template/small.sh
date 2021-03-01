@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
-### Created by author_name ( author_username ) on meta_thisday
+### Created by author_name ( author_username ) on meta_today
+### Based on https://github.com/pforret/bashew bashew_version
 readonly script_author="author@email.com"
-readonly script_created="meta_thisday"
-readonly script_version="0.0.0" # update version number manually
+readonly script_created="meta_today"
 readonly script_prefix=$(basename "${BASH_SOURCE[0]}" .sh)
 readonly script_basename=$(basename "${BASH_SOURCE[0]}")
+readonly script_folder=$(dirname "${BASH_SOURCE[0]}")
 readonly run_as_root=-1 # run_as_root: 0 = don't check anything / 1 = script MUST run as root / -1 = script MAY NOT run as root
+
+script_version="0.0.0" # update version number manually
+[[ -f "$script_folder/VERSION.md" ]] && script_version=$(cat "$script_folder/VERSION.md")
 
 #####################################################################
 ## 1. fill in the usage instructions
@@ -13,6 +17,7 @@ readonly run_as_root=-1 # run_as_root: 0 = don't check anything / 1 = script MUS
 show_usage() {
   out "Program: ${col_grn}$script_basename $script_version${col_reset} by ${col_ylw}$script_author${col_reset}"
   out "Updated: ${col_grn}$script_modified${col_reset}"
+  out "Description: package_description"
   out "Usage  : $script_basename [-q] [-v] [-t <target>] <param1>"
   out "    -q : 'quiet' (don't show output)"
   out "    -v : 'verbose' (show more output)"
@@ -20,6 +25,9 @@ show_usage() {
 }
 
 # import .env file with secrets/config
+# shellcheck source=/dev/null
+[[ -f "$script_folder/.env" ]]  && source "$script_folder/.env"
+# shellcheck source=/dev/null
 [[ -f "./.env" ]]  && source "./.env"
 
 #####################################################################
@@ -28,12 +36,14 @@ show_usage() {
 verbose=0
 quiet=0
 target=""
+must_show_usage=0
 while getopts "qvt:" opt; do
   case ${opt} in
     q ) quiet=1 ;;
     v ) verbose=1 ;;
     t ) target="$OPTARG" ;;
-    \? ) show_usage && safe_exit ;;
+    \? ) must_show_usage=1 ;;
+    * ) must_show_usage=1 ;;
   esac
 done
 shift $((OPTIND -1))
@@ -42,13 +52,15 @@ shift $((OPTIND -1))
 ## 3. process script parameters
 #####################################################################
 main() {
-    log "Program: $script_basename $script_version"
+    out "Program: $script_prefix $script_version"
+    log "Created: $script_created"
     log "Updated: $script_modified"
     log "Run as : $USER@$HOSTNAME"
     # add programs you need in your script here, like tar, wget, ffmpeg, rsync ...
+    [[ $must_show_usage -gt 0 ]] && show_usage && safe_exit
     verify_programs awk basename cut date dirname find grep head mkdir sed stat tput uname wc
 
-    action=$(lower_case "$1")
+    action=$(lower_case "${1:-}")
     case $action in
     action1 )
         perform_action1 "$target"

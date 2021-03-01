@@ -22,10 +22,10 @@ param|1|action|action to perform: script/project/init/update
 
 list_examples() {
   echo -n "
-$script_fname script  : create new (stand-alone) script (interactive)
-$script_fname project : create new bash script repo (interactive)
-$script_fname init    : initialize this repo as a new project (when generated from the 'bashew' template repo)
-$script_fname update  : update $script_fname to latest version (git pull)
+$script_basename script  : create new (stand-alone) script (interactive)
+$script_basename project : create new bash script repo (interactive)
+$script_basename init    : initialize this repo as a new project (when generated from the 'bashew' template repo)
+$script_basename update  : update $script_basename to latest version (git pull)
 " | grep -v '^$'
 }
 ## Put your helper scripts here
@@ -39,7 +39,7 @@ get_author_data() {
 
   # if there is prior data, use that
   [[ -n ${BASHEW_AUTHOR_FULLNAME:-} ]] && guess_fullname="$BASHEW_AUTHOR_FULLNAME"
-  [[ -n ${BASHEW_AUTHOR_EMAIL:-} ]]    && guess_email="$BASHEW_AUTHOR_EMAIL"
+  [[ -n ${BASHEW_AUTHOR_EMAIL:-} ]] && guess_email="$BASHEW_AUTHOR_EMAIL"
   [[ -n ${BASHEW_AUTHOR_USERNAME:-} ]] && guess_username="$BASHEW_AUTHOR_USERNAME"
 
   # if there is git config data, use that
@@ -53,7 +53,7 @@ get_author_data() {
     guess_username=$(basename "$guess_username")
   fi
 
-  if ((force)) ; then
+  if ((force)); then
     author_fullname="$guess_fullname"
     author_email="$guess_email"
     author_username="$guess_username"
@@ -63,7 +63,7 @@ get_author_data() {
   else
     announce "1. first we need the information of the author"
     author_fullname=$(ask "Author full name        " "$guess_fullname")
-    author_email=$(   ask "Author email            " "$guess_email")
+    author_email=$(ask "Author email            " "$guess_email")
     author_username=$(ask "Author (github) username" "$guess_username")
     export BASHEW_AUTHOR_FULLNAME="$author_fullname"
     export BASHEW_AUTHOR_EMAIL="$author_email"
@@ -82,15 +82,28 @@ copy_and_replace() {
   local input="$1"
   local output="$2"
 
-    < "$input" \
-      sed "s/author_name/$author_fullname/g" \
-    | sed "s/author_username/$author_username/g" \
-    | sed "s/author@email.com/$author_email/g" \
-    | sed "s/package_name/$clean_name/g" \
-    | sed "s/package_description/$new_description/g" \
-    | sed "s/meta_thisday/$thisday/g" \
-    | sed "s/meta_thisyear/$thisyear/g" \
-    > "$output"
+  awk \
+    -v author_fullname="$author_fullname" \
+    -v author_username="$author_username" \
+    -v author_email="$author_email" \
+    -v package_name="$clean_name" \
+    -v package_description="$new_description" \
+    -v meta_today="$execution_day" \
+    -v meta_year="$execution_year" \
+    -v bashew_version="$script_version" \
+    '{
+    gsub(/author_name/,author_fullname);
+    gsub(/author_username/,author_username);
+    gsub(/author@email.com/,author_email);
+    gsub(/package_name/,package_name);
+    gsub(/package_description/,package_description);
+    gsub(/meta_today/,meta_today);
+    gsub(/meta_year/,meta_year);
+    gsub(/bashew_version/,bashew_version);
+    print;
+    }' \
+    <"$input" \
+    >"$output"
 }
 
 random_word() {
@@ -103,20 +116,24 @@ random_word() {
     elif [[ -f /usr/dict/words ]]; then
       cat /usr/dict/words
     else
-      printf 'zero,one,two,three,four,five,six,seven,eight,nine,ten,alfa,bravo,charlie,delta,echo,foxtrot,golf,hotel,india,juliet,kilo,lima,mike,november,oscar,papa,quebec,romeo,sierra,tango,uniform,victor,whiskey,xray,yankee,zulu%.0s' {1..3000} \
-      | tr ',' "\n"
+      printf 'zero,one,two,three,four,five,six,seven,eight,nine,ten,alfa,bravo,charlie,delta,echo,foxtrot,golf,hotel,india,juliet,kilo,lima,mike,november,oscar,papa,quebec,romeo,sierra,tango,uniform,victor,whiskey,xray,yankee,zulu%.0s' {1..3000} |
+        tr ',' "\n"
     fi
-  ) \
-    | awk 'length($1) > 2 && length($1) < 8 {print}' \
-    | grep -v "'" \
-    | grep -v " " \
-    | awk "NR == $RANDOM {print tolower(\$0)}"
+  ) |
+    awk 'length($1) > 2 && length($1) < 8 {print}' |
+    grep -v "'" |
+    grep -v " " |
+    awk "NR == $RANDOM {print tolower(\$0)}"
 }
 
-delete_folder(){
-  if [[ -d "$1" ]] ; then
+delete_stuff() {
+  if [[ -d "$1" ]]; then
     log "Delete folder [$1]"
     rm -fr "$1"
+  fi
+  if [[ -f "$1" ]]; then
+    log "Delete file [$1]"
+    rm "$1"
   fi
 }
 #####################################################################
@@ -124,7 +141,7 @@ delete_folder(){
 #####################################################################
 
 main() {
-  log "Program: $script_fname $script_version"
+  log "Program: $script_basename $script_version"
   log "Updated: $script_modified"
   log "Run as : $USER@$HOSTNAME"
   # add programs you need in your script here, like tar, wget, ffmpeg, rsync ...
@@ -155,12 +172,12 @@ main() {
       random_name="$(random_word)_$(random_word)"
       get_author_data "./$random_name"
     fi
-    if [[ ! -d "$new_name" ]] ; then
+    if [[ ! -d "$new_name" ]]; then
       announce "Creating project $new_name ..."
       mkdir "$new_name"
       template_folder="$script_install_folder/template"
       ## first do all files that can change
-      for file in "$template_folder"/*.md "$template_folder/LICENSE" "$template_folder"/.gitignore  ; do
+      for file in "$template_folder"/*.md "$template_folder/LICENSE" "$template_folder"/.gitignore "$template_folder"/.env.example; do
         bfile=$(basename "$file")
         ((quiet)) || echo -n "$bfile "
         new_file="$new_name/$bfile"
@@ -170,18 +187,18 @@ main() {
       copy_and_replace "$template_folder/$model.sh" "$new_name/$clean_name.sh"
       chmod +x "$new_name/$clean_name.sh"
       ## now the CI/CD files
-      if [[ -f "$template_folder/bitbucket-pipelines.yml" ]] ; then
+      if [[ -f "$template_folder/bitbucket-pipelines.yml" ]]; then
         ((quiet)) || echo -n "bitbucket-pipelines "
         cp "$template_folder/bitbucket-pipelines.yml" "$new_name/"
       fi
-      if [[ -d "$template_folder/.github" ]] ; then
+      if [[ -d "$template_folder/.github" ]]; then
         ((quiet)) || echo -n ".github "
         cp -r "$template_folder/.github" "$new_name/.github"
       fi
 
       ((quiet)) || echo " "
-      if confirm "Do you want to 'git init' the new project?" ; then
-        ( pushd "$new_name" && git init && git add . && popd || return) > /dev/null 2>&1
+      if confirm "Do you want to 'git init' the new project?"; then
+        (pushd "$new_name" && git init && git add . && popd || return) >/dev/null 2>&1
       fi
       success "next step: 'cd $new_name' and start scripting!"
     else
@@ -190,15 +207,16 @@ main() {
     ;;
 
   init)
-    repo_name=$(basename "$script_install_path" .sh)
-    [[ "$repo_name" == "bashew" ]] && die "You can only run the '$script_fname init' of a *new* repo, derived from the bashew template on Github."
-    [[ ! -d ".git" ]] && die "You can only run '$script_fname init' in the root of your repo"
+    repo_name=$(basename "$script_install_folder")
+    [[ "$repo_name" == "bashew" ]] && die "You can only run the '$script_basename init' of a *new* repo, derived from the bashew template on Github."
+    [[ ! -d ".git" ]] && die "You can only run '$script_basename init' in the root of your repo"
     [[ ! -d "template" ]] && die "The 'template' folder seems to be missing, are you sure this repo is freshly cloned from pforret/bashew?"
+    [[ ! -f "$script_install_folder/template/$model.sh" ]] && die "$model.sh is not a valid template"
     new_name="$repo_name.sh"
     get_author_data "./$new_name"
     announce "Creating script $new_name ..."
     # shellcheck disable=SC2154
-    for file in template/*.md template/LICENSE template/.gitignore  ; do
+    for file in template/*.md template/LICENSE template/.gitignore template/.gitignore; do
       bfile=$(basename "$file")
       ((quiet)) || echo -n "$bfile "
       new_file="./$bfile"
@@ -211,20 +229,26 @@ main() {
     alt_dir=$(dirname "$new_name")
     alt_base=$(basename "$new_name" .sh)
     alt_name="$alt_dir/$alt_base"
-    if [[ ! "$alt_name" == "$new_name" ]] ; then
+    if [[ ! "$alt_name" == "$new_name" ]]; then
       # create a "do_this" alias for "do_this.sh"
       ln -s "$new_name" "$alt_name"
       git add "$alt_name"
     fi
     announce "Now cleaning up unnecessary bashew files ..."
-    delete_folder template
-    delete_folder assets
-    delete_folder .tmp
-    delete_folder log
+    delete_stuff template
+    delete_stuff tests/disabled
+    delete_stuff tests/test_bashew.sh
+    delete_stuff assets
+    delete_stuff .tmp
+    delete_stuff log
     log "Delete script [bashew.sh] ..."
-    ( sleep 1 ; rm -f bashew.sh bashew ) & # delete will happen after the script is finished
-    success "script $new_name created"
-    success "proceed with: git commit -a -m 'after bashew init' && git push"
+    (
+      sleep 1
+      rm -f bashew.sh bashew
+    ) &# delete will happen after the script is finished
+    success "script $new_name created!"
+    success "now do: ${col_ylw}git commit -a -m 'after bashew init' && git push${col_reset}"
+    out "tip: install ${col_ylw}basher${col_reset} and ${col_ylw}pforret/setver${col_reset} for easy bash script version management"
     ;;
 
   update)
@@ -233,7 +257,31 @@ main() {
     # shellcheck disable=SC2164
     popd
     ;;
-    *)
+
+  debug)
+    out "print_with_out=yes"
+    log "print_with_log=yes"
+    announce "print_with_announce=yes"
+    success "print_with_success=yes"
+    progress "print_with_progress=yes"
+    echo ""
+    alert "print_with_alert=yes"
+
+    hash3=$(echo "1234567890" | hash 3)
+    hash6=$(echo "1234567890" | hash)
+    out "hash3=$hash3"
+    out "hash6=$hash6"
+    out "script_basename=$script_basename"
+    out "script_author=$script_author"
+    out "escape1 = $(escape "/forward/slash")"
+    out "escape2 = $(escape '\backward\slash')"
+    out "lowercase = $(lcase 'AbCdEfGhIjKlMnÔû')"
+    out "uppercase = $(ucase 'AbCdEfGhIjKlMnÔû')"
+    # shellcheck disable=SC2015
+    is_set "$force" && out "force=$force (true)" || out "force=$force (false)"
+    ;;
+
+  *)
 
     die "param [$action] not recognized"
     ;;
@@ -247,21 +295,18 @@ main() {
 # removed -e because it made basic [[ testing ]] difficult
 set -uo pipefail
 IFS=$'\n\t'
+# shellcheck disable=SC2120
 hash() {
+  length=${1:-6}
   # shellcheck disable=SC2230
   if [[ -n $(which md5sum) ]]; then
     # regular linux
-    md5sum | cut -c1-6
+    md5sum | cut -c1-"$length"
   else
     # macos
-    md5 | cut -c1-6
+    md5 | cut -c1-"$length"
   fi
 }
-
-script_modified="??"
-os_uname=$(uname -s)
-[[ "$os_uname" == "Linux" ]] && script_modified=$(stat -c %y "${BASH_SOURCE[0]}" 2>/dev/null | cut -c1-16) # generic linux
-[[ "$os_uname" == "Darwin" ]] && script_modified=$(stat -f "%Sm" "${BASH_SOURCE[0]}" 2>/dev/null)          # for MacOS
 
 force=0
 help=0
@@ -316,14 +361,17 @@ progress() {
 
 die() {
   tput bel
-  out "${col_red}${char_fail} $script_fname${col_reset}: $*" >&2
+  out "${col_red}${char_fail} $script_basename${col_reset}: $*" >&2
   safe_exit
 }
 
 alert() { out "${col_red}${char_alrt}${col_reset}: $*" >&2; } # print error and continue
 success() { out "${col_grn}${char_succ}${col_reset}  $*"; }
-announce() { out "${col_grn}${char_wait}${col_reset}  $*" ; sleep 1 ;}
-log() { ((verbose)) && out "${col_ylw}# $* ${col_reset}"; }
+announce() {
+  out "${col_grn}${char_wait}${col_reset}  $*"
+  sleep 1
+}
+log() { ((verbose)) && out "${col_ylw}# $* ${col_reset}" >&2; }
 
 escape() { echo "$*" | sed 's/\//\\\//g'; }
 
@@ -357,7 +405,7 @@ trap "die \"ERROR \$? after \$SECONDS seconds \n\
 safe_exit() {
   [[ -n "$tmpfile" ]] && [[ -f "$tmpfile" ]] && rm "$tmpfile"
   trap - INT TERM EXIT
-  log "$script_fname finished after $SECONDS seconds"
+  log "$script_basename finished after $SECONDS seconds"
   exit 0
 }
 
@@ -373,10 +421,10 @@ is_dir() { [[ -d "$1" ]]; }
 #TIP:> if is_file "/etc/hosts" ; then ; cat "/etc/hosts" ; fi
 
 show_usage() {
-  out "Program: ${col_grn}$script_fname $script_version${col_reset} by ${col_ylw}$script_author${col_reset}"
+  out "Program: ${col_grn}$script_basename $script_version${col_reset} by ${col_ylw}$script_author${col_reset}"
   out "Updated: ${col_grn}$script_modified${col_reset}"
 
-  echo -n "Usage: $script_fname"
+  echo -n "Usage: $script_basename"
   list_options |
     awk '
   BEGIN { FS="|"; OFS=" "; oneline="" ; fulltext="Flags, options and parameters:"}
@@ -439,7 +487,7 @@ verify_programs() {
   for prog in "$@"; do
     # shellcheck disable=SC2230
     if [[ -z $(which "$prog") ]]; then
-      die "$script_fname needs [$prog] but this program cannot be found on this $os_uname machine"
+      die "$script_basename needs [$prog] but this program cannot be found on this $os_uname machine"
     fi
   done
 }
@@ -564,49 +612,78 @@ parse_options() {
 tmpfile=""
 logfile=""
 
-initialize_script_data(){
-    readonly thisday=$(date "+%Y-%m-%d")
-    readonly thisyear=$(date "+%Y")
+recursive_readlink() {
+  [[ ! -L "$1" ]] && echo "$1" && return 0
+  local file_folder
+  local link_folder
+  local link_name
+  file_folder="$(dirname "$1")"
+  # resolve relative to absolute path
+  [[ "$file_folder" != /* ]] && link_folder="$(cd -P "$file_folder" >/dev/null 2>&1 && pwd)"
+  local symlink
+  symlink=$(readlink "$1")
+  link_folder=$(dirname "$symlink")
+  link_name=$(basename "$symlink")
+  [[ -z "$link_folder" ]] && link_folder="$file_folder"
+  [[ "$link_folder" == \.* ]] && link_folder="$(cd -P "$file_folder" && cd -P "$link_folder" >/dev/null 2>&1 && pwd)"
+  log "Symbolic ln: $1 -> [$symlink]"
+  recursive_readlink "$link_folder/$link_name"
+}
 
-   if [[ -z $(dirname "${BASH_SOURCE[0]}") ]]; then
-    # script called without path ; must be in $PATH somewhere
-    # shellcheck disable=SC2230
-<<<<<<< HEAD
-    script_install_path=$(which "${BASH_SOURCE[0]}")
-    if [[ -n $(readlink "$script_install_path") ]] ; then
-      # when script was installed with e.g. basher
-      script_install_path=$(readlink "$script_install_path")
-=======
-    script_install_path=$(which "$0")
-    if [[ -n $(readlink "$script_install_path") ]] ; then
-      script_install_path=$(readlink "$script_install_path") # when script was installed with e.g. basher
-      log "Script linked: $script_install_path"
->>>>>>> b24548b... Why:
-    fi
-    script_install_folder=$(dirname "$script_install_path")
-  else
-    # script called with relative/absolute path
-    script_install_folder=$(dirname "${BASH_SOURCE[0]}")
-    # resolve to absolute path
-    script_install_folder=$(cd "$script_install_folder" && pwd)
-    if [[ -n "$script_install_folder" ]] ; then
-      script_install_path="$script_install_folder/$script_fname"
+
+lookup_script_data() {
+  readonly script_prefix=$(basename "${BASH_SOURCE[0]}" .sh)
+  readonly script_basename=$(basename "${BASH_SOURCE[0]}")
+  readonly execution_day=$(date "+%Y-%m-%d")
+  readonly execution_year=$(date "+%Y")
+
+  script_install_path="${BASH_SOURCE[0]}"
+  log "Script path: $script_install_path"
+  script_install_path=$(recursive_readlink "$script_install_path")
+  log "Actual path: $script_install_path"
+  readonly script_install_folder="$(dirname "$script_install_path")"
+
+  script_modified="??"
+  os_uname=$(uname -s)
+  [[ "$os_uname" == "Linux" ]] && script_modified=$(stat -c "%y" "$script_install_path" 2>/dev/null | cut -c1-16) # generic linux
+  [[ "$os_uname" == "Darwin" ]] && script_modified=$(stat -f "%Sm" "$script_install_path" 2>/dev/null)            # for MacOS
+
+  # get shell/operating system/versions
+  shell_brand="sh"
+  shell_version="?"
+  [[ -n "${ZSH_VERSION:-}" ]] && shell_brand="zsh" && shell_version="$ZSH_VERSION"
+  [[ -n "${BASH_VERSION:-}" ]] && shell_brand="bash" && shell_version="$BASH_VERSION"
+  [[ -n "${FISH_VERSION:-}" ]] && shell_brand="fish" && shell_version="$FISH_VERSION"
+  [[ -n "${KSH_VERSION:-}" ]] && shell_brand="ksh" && shell_version="$KSH_VERSION"
+  log "Shell type : $shell_brand - version $shell_version"
+
+  readonly os_kernel=$(uname -s)
+  os_version=$(uname -r)
+  os_machine=$(uname -m)
+  case "$os_kernel" in
+  CYGWIN* | MSYS* | MINGW*)
+    os_name="Windows"
+    ;;
+  Darwin)
+    os_name=$(sw_vers -productName)       # macOS
+    os_version=$(sw_vers -productVersion) # 11.1
+    ;;
+  Linux | GNU*)
+    if [[ $(which lsb_release) ]]; then
+      # 'normal' Linux distributions
+      os_name=$(lsb_release -i)    # Ubuntu
+      os_version=$(lsb_release -r) # 20.04
     else
-      script_install_path="${BASH_SOURCE[0]}"
-      script_install_folder=$(dirname "${BASH_SOURCE[0]}")
+      # Synology, QNAP,
+      os_name="Linux"
     fi
-    if [[ -n $(readlink "$script_install_path") ]] ; then
-      # when script was installed with e.g. basher
-      script_install_path=$(readlink "$script_install_path")
-      script_install_folder=$(dirname "$script_install_path")
-    fi
-  fi
-  log "Executable: [$script_install_path]"
-  log "In folder : [$script_install_folder]"
+    ;;
+  esac
+  log "OS Version : $os_name ($os_kernel) $os_version on $os_machine"
 
   script_version=0.0.0
   [[ -f "$script_install_folder/VERSION.md" ]] && script_version=$(cat "$script_install_folder/VERSION.md")
-  if git status >/dev/null; then
+  if git status >/dev/null 2>&1; then
     readonly in_git_repo=1
   else
     readonly in_git_repo=0
@@ -617,7 +694,7 @@ prep_log_and_temp_dir() {
   tmpfile=""
   if [[ -n "${tmpd:-}" ]]; then
     folder_prep "$tmpd" 1
-    tmpfile=$(mktemp "$tmpd/$thisday.XXXXXX")
+    tmpfile=$(mktemp "$tmpd/$execution_day.XXXXXX")
     log "Tmpfile: $tmpfile"
     # you can use this temporary file in your program
     # it will be deleted automatically when the program ends
@@ -625,18 +702,28 @@ prep_log_and_temp_dir() {
   logfile=""
   if [[ -n "${logd:-}" ]]; then
     folder_prep "$logd" 7
-    logfile=$logd/$script_name.$thisday.log
+    logfile=$logd/$script_prefix.$execution_day.log
     log "Logfile: $logfile"
-    echo "$(date '+%H:%M:%S') | [$script_fname] $script_version started" >>"$logfile"
+    echo "$(date '+%H:%M:%S') | [$script_basename] $script_version started" >>"$logfile"
   fi
 }
 
-[[ $runasroot == 1 ]] && [[ $UID -ne 0 ]] && die "MUST be root to run this script"
-[[ $runasroot == -1 ]] && [[ $UID -eq 0 ]] && die "CANNOT be root to run this script"
+[[ $run_as_root == 1 ]] && [[ $UID -ne 0 ]] && die "MUST be root to run this script"
+[[ $run_as_root == -1 ]] && [[ $UID -eq 0 ]] && die "CANNOT be root to run this script"
 
-initialize_script_data
+lookup_script_data
+
+# set default values for flags & options
 init_options
+
+# overwrite with specified options if any
 parse_options "$@"
+
+# clean up log and temp folder
 prep_log_and_temp_dir
+
+# run main program
 main
+
+# exit and clean up
 safe_exit
