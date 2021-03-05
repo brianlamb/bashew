@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
-readonly script_author="rocketmanblamb@gmail.com"
-readonly script_fname=$(basename "${BASH_SOURCE[0]}")
-readonly script_name=$(basename "${BASH_SOURCE[0]}" .sh)
-# runasroot: 0 = don't check anything / 1 = script MUST run as root / -1 = script MAY NOT run as root
+readonly script_author="peter@forret.com"
+# run_as_root: 0 = don't check anything / 1 = script MUST run as root / -1 = script MAY NOT run as root
 readonly run_as_root=-1
 
 list_options() {
@@ -629,7 +627,6 @@ recursive_readlink() {
   log "Symbolic ln: $1 -> [$symlink]"
   recursive_readlink "$link_folder/$link_name"
 }
-
 
 lookup_script_data() {
   readonly script_prefix=$(basename "${BASH_SOURCE[0]}" .sh)
